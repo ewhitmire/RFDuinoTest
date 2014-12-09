@@ -20,7 +20,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.util.UUID;
-
+//Test
 public class MainActivity extends Activity implements BluetoothAdapter.LeScanCallback {
     // State machine
     final private static int STATE_BLUETOOTH_OFF = 1;
