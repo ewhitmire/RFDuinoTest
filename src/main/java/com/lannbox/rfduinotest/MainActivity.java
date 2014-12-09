@@ -1,6 +1,7 @@
 package com.lannbox.rfduinotest;
 
 import android.app.Activity;
+import android.app.FragmentManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
@@ -43,11 +44,15 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
     private TextView deviceInfoText;
     private TextView connectionStatusText;
     private Button connectButton;
+    private Button disconnectButton;
     private EditData valueEdit;
     private Button sendZeroButton;
     private Button sendValueButton;
     private Button clearButton;
     private LinearLayout dataLayout;
+
+    //private RetainedFragment dataFragment;
+    //private boolean serviceBound;
 
     private final BroadcastReceiver bluetoothStateReceiver = new BroadcastReceiver() {
         @Override
@@ -70,9 +75,10 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         }
     };
 
-    private final ServiceConnection rfduinoServiceConnection = new ServiceConnection() {
+    private ServiceConnection rfduinoServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
+            //serviceBound = true;
             rfduinoService = ((RFduinoService.LocalBinder) service).getService();
             if (rfduinoService.initialize()) {
                 if (rfduinoService.connect(bluetoothDevice.getAddress())) {
@@ -146,8 +152,19 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
             public void onClick(View v) {
                 v.setEnabled(false);
                 connectionStatusText.setText("Connecting...");
-                Intent rfduinoIntent = new Intent(MainActivity.this, RFduinoService.class);
-                bindService(rfduinoIntent, rfduinoServiceConnection, BIND_AUTO_CREATE);
+                Intent rfduinoIntent = new Intent(getApplicationContext(), RFduinoService.class);
+                getApplicationContext().bindService(rfduinoIntent, rfduinoServiceConnection, BIND_AUTO_CREATE);
+            }
+        });
+
+        // Disconnect Device
+        disconnectButton = (Button) findViewById(R.id.disconnect);
+        disconnectButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                v.setEnabled(false);
+                rfduinoService.disconnect();
+                getApplicationContext().unbindService(rfduinoServiceConnection);
             }
         });
 
@@ -191,6 +208,26 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         });
 
         dataLayout = (LinearLayout) findViewById(R.id.dataLayout);
+
+/*
+        // find the retained fragment on activity restarts
+        FragmentManager fm = getFragmentManager();
+        dataFragment = (RetainedFragment) fm.findFragmentByTag("data");
+
+        // create the fragment and data the first time
+        if (dataFragment == null) {
+            // add the fragment
+            dataFragment = new RetainedFragment();
+            fm.beginTransaction().add(dataFragment, "data").commit();
+            // load the data from the web
+            dataFragment.setData(rfduinoServiceConnection);
+        }
+        else
+        {
+            rfduinoServiceConnection = dataFragment.getData();
+            updateUi();
+        }
+*/
     }
 
     @Override
@@ -201,7 +238,9 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         registerReceiver(bluetoothStateReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
         registerReceiver(rfduinoReceiver, RFduinoService.getIntentFilter());
 
-        updateState(bluetoothAdapter.isEnabled() ? STATE_DISCONNECTED : STATE_BLUETOOTH_OFF);
+      //  if(state < STATE_DISCONNECTED) {
+            updateState(bluetoothAdapter.isEnabled() ? STATE_DISCONNECTED : STATE_BLUETOOTH_OFF);
+       // }
     }
 
     @Override
@@ -214,7 +253,38 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         unregisterReceiver(bluetoothStateReceiver);
         unregisterReceiver(rfduinoReceiver);
     }
+/*
+    @Override
+    protected  void onDestroy()
+    {
+        super.onDestroy();
+        // store the data in the fragment
+        dataFragment.setData(rfduinoServiceConnection);
+        if(isFinishing() && serviceBound)
+        {
+            getApplicationContext().unbindService(rfduinoServiceConnection);
+        }
+    }
 
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState)
+    {
+        super.onSaveInstanceState(savedInstanceState);
+        // Save UI state changes to the savedInstanceState.
+        // This bundle will be passed to onCreate if the process is
+        // killed and restarted.
+        savedInstanceState.putInt("state", state);
+        savedInstanceState.putBoolean("bound", serviceBound);
+    }
+
+    @Override
+    public void onRestoreInstanceState(Bundle savedInstanceState)
+    {
+        super.onRestoreInstanceState(savedInstanceState);
+        state = savedInstanceState.getInt("state");
+        serviceBound = savedInstanceState.getBoolean("bound");
+    }
+*/
     private void upgradeState(int newState) {
         if (newState > state) {
             updateState(newState);
@@ -264,6 +334,7 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         }
         connectionStatusText.setText(connectionText);
         connectButton.setEnabled(bluetoothDevice != null && state == STATE_DISCONNECTED);
+        disconnectButton.setEnabled(bluetoothDevice != null && state == STATE_CONNECTED);
 
         // Send
         sendZeroButton.setEnabled(connected);
@@ -300,6 +371,5 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
             }
         });
     }
-
 }
 
