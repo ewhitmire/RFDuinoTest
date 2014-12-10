@@ -240,6 +240,8 @@ public class RFduinoService extends Service {
             Log.w(TAG, "BluetoothAdapter not initialized");
             return;
         }
+        disconnectRFduino();
+
         mBluetoothGatt.disconnect();
     }
 
@@ -282,6 +284,25 @@ public class RFduinoService extends Service {
         }
 
         characteristic.setValue(data);
+        characteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+        return mBluetoothGatt.writeCharacteristic(characteristic);
+    }
+
+    public boolean disconnectRFduino() {
+        if (mBluetoothGatt == null || mBluetoothGattService == null) {
+            Log.w(TAG, "BluetoothGatt not initialized");
+            return false;
+        }
+
+        BluetoothGattCharacteristic characteristic =
+                mBluetoothGattService.getCharacteristic(UUID_DISCONNECT);
+
+        if (characteristic == null) {
+            Log.w(TAG, "Disconnect characteristic not found");
+            return false;
+        }
+
+        characteristic.setValue("");
         characteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
         return mBluetoothGatt.writeCharacteristic(characteristic);
     }

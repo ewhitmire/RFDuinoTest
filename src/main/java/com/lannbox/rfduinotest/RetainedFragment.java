@@ -7,7 +7,7 @@ import android.os.Bundle;
 public class RetainedFragment extends Fragment {
 
     // data object we want to retain
-    private ServiceConnection retainedConnection;
+    private BTLEBundle btleBundle;
 
     // this method is only called once for this fragment
     @Override
@@ -17,11 +17,12 @@ public class RetainedFragment extends Fragment {
         setRetainInstance(true);
     }
 
-    public void setData(ServiceConnection connection) {
-        this.retainedConnection = connection;
+    public void setData(BTLEBundle bundle) {
+        this.btleBundle = bundle;
     }
 
-    public ServiceConnection getData() {
-        return retainedConnection;
+    public BTLEBundle getData() {
+        return btleBundle;
     }
 }
+
