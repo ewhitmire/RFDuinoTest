@@ -9,7 +9,6 @@ public class BTLEBundle
     public ServiceConnection connection;
     public RFduinoService service;
     public BluetoothDevice device;
-    public BluetoothAdapter adapter;
     public int state_;
     public boolean isBound;
 
@@ -17,7 +16,6 @@ public class BTLEBundle
         connection = null;
         service = null;
         device = null;
-        adapter = null;
         state_ = 0;
         isBound = false;
     }

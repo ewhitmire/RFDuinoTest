@@ -158,11 +158,13 @@ public class RFduinoService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
+        Log.w(TAG, "onBind called");
         return mBinder;
     }
 
     @Override
     public boolean onUnbind(Intent intent) {
+        Log.w(TAG, "onUnbind called");
         // After using a given device, you should make sure that BluetoothGatt.close() is called
         // such that resources are cleaned up properly.  In this particular example, close() is
         // invoked when the UI is disconnected from the Service.
@@ -314,4 +316,11 @@ public class RFduinoService extends Service {
         filter.addAction(ACTION_DATA_AVAILABLE);
         return filter;
     }
+
+    public int onStartCommand(Intent intent, int flags, int startId){
+        Log.i(TAG, "in onStartCommand()");
+
+        return START_STICKY;
+    }
+
 }
