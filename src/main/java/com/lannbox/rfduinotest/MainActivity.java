@@ -55,7 +55,7 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
 
     private RetainedFragment dataFragment;
     private boolean serviceBound;
-    private boolean wasRotated = false;
+    private boolean connectionIsOld = false;
 
     private final BroadcastReceiver bluetoothStateReceiver = new BroadcastReceiver() {
         @Override
@@ -127,7 +127,7 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
                     // only restore the connection if there has been one
                     rfduinoServiceConnection = btleBundle.connection;
                     rfduinoService = btleBundle.service;
-                    wasRotated = true; // setting this flag to true to indicate a rotation
+                    connectionIsOld = true; // setting this flag to true to indicate a rotation
                 }
                 state = btleBundle.state_;
 
@@ -180,9 +180,9 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
                 v.setEnabled(false);
                 connectionStatusText.setText("Connecting...");
                 // if device was rotated we need to set up a new service connection with this activity
-                if(wasRotated) {
+                if(connectionIsOld) {
                     Log.w("Main","Rebuilding connection after rotation");
-                    wasRotated = false;
+                    connectionIsOld = false;
                     rfduinoServiceConnection = genServiceConnection();
                 }
                 Intent rfduinoIntent = new Intent(getApplicationContext(), RFduinoService.class);
