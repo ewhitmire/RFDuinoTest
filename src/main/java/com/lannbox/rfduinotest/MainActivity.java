@@ -121,6 +121,8 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
             {
                 bluetoothDevice = btleBundle.device;
                 serviceBound = btleBundle.isBound;
+                scanStarted = btleBundle.scanStarted;
+                scanning = btleBundle.scanning;
                 if(serviceBound) {
                     // only restore the connection if there has been one
                     rfduinoServiceConnection = btleBundle.connection;
@@ -296,6 +298,8 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
             btleBundle.device = bluetoothDevice;
             btleBundle.state_ = state;
             btleBundle.isBound = serviceBound;
+            btleBundle.scanStarted = scanStarted;
+            btleBundle.scanning = scanning;
             if(serviceBound) {
                 // only save the connection if there is one
                 btleBundle.connection = rfduinoServiceConnection;
@@ -409,6 +413,7 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
     public void onLeScan(BluetoothDevice device, final int rssi, final byte[] scanRecord) {
         bluetoothAdapter.stopLeScan(this);
         bluetoothDevice = device;
+        scanning = false;
 
         MainActivity.this.runOnUiThread(new Runnable() {
             @Override

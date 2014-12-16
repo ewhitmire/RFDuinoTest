@@ -10,7 +10,7 @@ public class BTLEBundle
     public RFduinoService service;
     public BluetoothDevice device;
     public int state_;
-    public boolean isBound;
+    public boolean isBound, scanStarted, scanning;
 
     public BTLEBundle(){
         connection = null;
@@ -18,6 +18,8 @@ public class BTLEBundle
         device = null;
         state_ = 0;
         isBound = false;
+        scanStarted = false;
+        scanning = false;
     }
 
 }
