@@ -24,6 +24,8 @@
 package com.lannbox.rfduinotest;
 
 import android.Manifest;
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -34,11 +36,14 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
 import android.os.Binder;
 import android.os.IBinder;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import java.util.UUID;
@@ -70,6 +75,32 @@ public class RFduinoService extends Service {
     public final static UUID UUID_SEND = BluetoothHelper.sixteenBitUuid(0x2222);
     public final static UUID UUID_DISCONNECT = BluetoothHelper.sixteenBitUuid(0x2223);
     public final static UUID UUID_CLIENT_CONFIGURATION = BluetoothHelper.sixteenBitUuid(0x2902);
+
+
+    // Stuff for handling the connection in the service:
+    // State machine
+    final private static int STATE_BLUETOOTH_OFF = 1;
+    final private static int STATE_DISCONNECTED = 2;
+    final private static int STATE_CONNECTING = 3;
+    final private static int STATE_CONNECTED = 4;
+
+    private int state;
+
+    private BluetoothDevice bluetoothDevice;
+
+    boolean receiverRegistered = false;
+
+    private final BroadcastReceiver bluetoothStateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, 0);
+            if (state == BluetoothAdapter.STATE_ON) {
+                upgradeState(STATE_DISCONNECTED);
+            } else if (state == BluetoothAdapter.STATE_OFF) {
+                downgradeState(STATE_BLUETOOTH_OFF);
+            }
+        }
+    };
 
     // Implements callback methods for GATT events that the app cares about.  For example,
     // connection change and services discovered.
@@ -147,6 +178,7 @@ public class RFduinoService extends Service {
             final Intent intent = new Intent(action);
             intent.putExtra(EXTRA_DATA, characteristic.getValue());
             sendBroadcast(intent, Manifest.permission.BLUETOOTH);
+            Log.w(TAG,"BTLE Data received and broadcasted");
         }
     }
 
@@ -317,10 +349,89 @@ public class RFduinoService extends Service {
         return filter;
     }
 
+
+    // Extension stuff to handle btle connection here
+
+    @Override
+    public void onCreate() {
+        Log.i(TAG, "onCreate()");
+        super.onCreate();
+    }
+
+    // preparing for stand alone action without activity
     public int onStartCommand(Intent intent, int flags, int startId){
-        Log.i(TAG, "in onStartCommand()");
+        Log.i(TAG, "onStartCommand()");
+
+        if(intent.getAction().equals("RFduinoService_Continue")) {
+            Intent notificationIntent = new Intent(RFduinoService.this, MainActivity.class);
+            notificationIntent.setAction("RFduinoTest_CallToMain");
+            notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            PendingIntent pendingIntent = PendingIntent.getActivity(RFduinoService.this, 0, notificationIntent, 0);
+
+            Intent discoIntent = new Intent(RFduinoService.this, RFduinoService.class);
+            discoIntent.setAction("ACTION_DISCONNECT");
+            PendingIntent pDiscoIntent = PendingIntent.getService(RFduinoService.this, 0, discoIntent, 0);
+
+            Intent connIntent = new Intent(RFduinoService.this, RFduinoService.class);
+            connIntent.setAction("ACTION_CONNECT");
+            PendingIntent pConnIntent = PendingIntent.getService(RFduinoService.this, 0, connIntent, 0);
+
+            Notification noti = new NotificationCompat.Builder(RFduinoService.this)
+                    .setContentTitle("Bluetooth Connection running")
+                    .setTicker("BTLE Ticker")
+                    .setContentText("BTLE Contenct Text")
+                    .setSmallIcon(R.drawable.ic_launcher)
+//                    .setLargeIcon(
+  //                          Bitmap.createScaledBitmap(icon, 128, 128, false))
+                    .setContentIntent(pendingIntent)
+                    .setOngoing(true) // maybe disable to allow closing with x-button?
+                    .addAction(android.R.drawable.ic_media_pause, "Disconnect", pDiscoIntent)
+                    .addAction(android.R.drawable.ic_media_play, "Connect", pConnIntent).build();
+
+            startForeground(101, noti);
+        }
+        else if(intent.getAction().equals("ACTION_DISCONNECT")) {
+            Log.i(TAG,"disconnect clicked");
+        }
+        else if(intent.getAction().equals("ACTION_CONNECT")) {
+            Log.i(TAG,"connect clicked");
+        }
+        else if(intent.getAction().equals("RFduinoService_Stop")) {
+            Log.i(TAG,"Background service stop received");
+            stopForeground(true);
+            stopSelf();
+        }
+
+        registerReceiver(bluetoothStateReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
+        receiverRegistered = true;
 
         return START_STICKY;
     }
 
+
+    private void upgradeState(int newState) {
+        if (newState > state) {
+            updateState(newState);
+        }
+    }
+
+    private void downgradeState(int newState) {
+        if (newState < state) {
+            updateState(newState);
+        }
+    }
+
+    private void updateState(int newState) {
+        state = newState;
+        //updateUi();
+    }
+
+    @Override
+    public void onDestroy()
+    {
+        if(receiverRegistered) {
+            unregisterReceiver(bluetoothStateReceiver);
+        }
+        super.onDestroy();
+    }
 }
