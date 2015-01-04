@@ -60,6 +60,7 @@ public class RFduinoService extends Service {
     private String mBluetoothDeviceAddress;
     private BluetoothGatt mBluetoothGatt;
     private BluetoothGattService mBluetoothGattService;
+    private BTLEBundle dataBundle;
 
     public final static String ACTION_CONNECTED =
             "com.rfduino.ACTION_CONNECTED";
@@ -182,6 +183,14 @@ public class RFduinoService extends Service {
         }
     }
 
+    public BTLEBundle restoreData() {
+        return dataBundle;
+    }
+
+    public void setData(BTLEBundle btleBundle) {
+        dataBundle = btleBundle;
+    }
+
     public class LocalBinder extends Binder {
         RFduinoService getService() {
             return RFduinoService.this;
@@ -195,12 +204,14 @@ public class RFduinoService extends Service {
     }
 
     @Override
+    public void onRebind(Intent intent) {
+        Log.w(TAG, "onBebind called");
+    }
+
+    @Override
     public boolean onUnbind(Intent intent) {
         Log.w(TAG, "onUnbind called");
-        // After using a given device, you should make sure that BluetoothGatt.close() is called
-        // such that resources are cleaned up properly.  In this particular example, close() is
-        // invoked when the UI is disconnected from the Service.
-        close();
+
         return super.onUnbind(intent);
     }
 
@@ -399,7 +410,6 @@ public class RFduinoService extends Service {
         else if(intent.getAction().equals("RFduinoService_Stop")) {
             Log.i(TAG,"Background service stop received");
             stopForeground(true);
-            stopSelf();
         }
 
         registerReceiver(bluetoothStateReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
@@ -429,6 +439,13 @@ public class RFduinoService extends Service {
     @Override
     public void onDestroy()
     {
+        Log.i(TAG, "onDestroy()");
+
+        // After using a given device, you should make sure that BluetoothGatt.close() is called
+        // such that resources are cleaned up properly.  In this particular example, close() is
+        // invoked when the UI is disconnected from the Service.
+        close();
+
         if(receiverRegistered) {
             unregisterReceiver(bluetoothStateReceiver);
         }

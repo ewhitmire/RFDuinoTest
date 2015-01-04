@@ -56,6 +56,7 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
     private RetainedFragment dataFragment;
     private boolean serviceBound;
     private boolean connectionIsOld = false;
+    private boolean fromNotification = false;
 
     private final BroadcastReceiver bluetoothStateReceiver = new BroadcastReceiver() {
         @Override
@@ -167,7 +168,10 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         if(inti.getAction().equals("RFduinoTest_CallToMain"))
         {
             Log.w("Main", "Return from notifictation");
-            //rfduinoService.stopForeground(true);
+            Intent stopForegroundIntent = new Intent(getApplicationContext(), RFduinoService.class);
+            stopForegroundIntent.setAction("RFduinoService_Stop");
+            getApplicationContext().startService(stopForegroundIntent);
+            fromNotification = true;
         }
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -175,6 +179,11 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         // rebind to service if it currently isn't
         if(!serviceBound) {
             rfduinoServiceConnection = genServiceConnection();
+        }
+
+        if(fromNotification) {
+            Intent rfduinoIntent = new Intent(getApplicationContext(), RFduinoService.class);
+            getApplicationContext().bindService(rfduinoIntent, rfduinoServiceConnection, BIND_AUTO_CREATE);
         }
 
         // Bluetooth
@@ -231,6 +240,7 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
             @Override
             public void onClick(View v) {
                 v.setEnabled(false);
+
                 if(rfduinoService != null) {
                     rfduinoService.disconnect();
                     rfduinoService = null;
@@ -241,6 +251,12 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
                     serviceBound = false;
                 }
                 else{ Log.w("Main","ServiceConnection empty");}
+                if(fromNotification) {
+                    Log.w("Main","Stopping service before unbinding");
+                    Intent stopIntent = new Intent(getApplicationContext(),RFduinoService.class);
+                    getApplicationContext().stopService(stopIntent);
+                    fromNotification = false;
+                }
             }
         });
 
@@ -346,15 +362,20 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
                     btleBundle.service = rfduinoService;
                 }
 
-                if(dataFragment != null) {
-                    Log.w("Main","Bundle saved to fragment");
-                    dataFragment.setData(btleBundle);
+                if(rfduinoService != null) {
+                    Log.w("Main","Bundle saved to service");
+                    rfduinoService.setData(btleBundle);
                 }
+
 
                 Log.w("Main","Service pushed into background");
                 Intent startBackgroundIntent = new Intent(getApplicationContext(), RFduinoService.class);
                 startBackgroundIntent.setAction("RFduinoService_Continue");
                 getApplicationContext().startService(startBackgroundIntent);
+
+                if(rfduinoServiceConnection != null) {
+                    getApplicationContext().unbindService(rfduinoServiceConnection);
+                }
             }
         }
         // rotating behaviour is handled below
@@ -479,9 +500,22 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
                 serviceBound = true;
                 rfduinoService = ((RFduinoService.LocalBinder) service).getService();
                 Log.w("Main","onServiceConnected called, service = "+ rfduinoService.toString());
-                if (rfduinoService.initialize()) {
-                    if (rfduinoService.connect(bluetoothDevice.getAddress())) {
-                        upgradeState(STATE_CONNECTING);
+                if(fromNotification) {
+                    BTLEBundle bundle = rfduinoService.restoreData();
+                    if(bundle != null) {
+                        state = bundle.state_;
+                        bluetoothDevice = bundle.device;
+                        scanStarted = bundle.scanStarted;
+                        scanning = bundle.scanning;
+                        Log.w("Main","State restored from service, state: "+ state);
+                        updateUi();
+                    }
+                }
+                else{
+                    if (rfduinoService.initialize()) {
+                        if (rfduinoService.connect(bluetoothDevice.getAddress())) {
+                            upgradeState(STATE_CONNECTING);
+                        }
                     }
                 }
             }
