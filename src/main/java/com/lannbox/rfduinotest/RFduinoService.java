@@ -25,6 +25,7 @@ package com.lannbox.rfduinotest;
 
 import android.Manifest;
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
@@ -373,39 +374,11 @@ public class RFduinoService extends Service {
     // preparing for stand alone action without activity
     public int onStartCommand(Intent intent, int flags, int startId){
         Log.i(TAG, "onStartCommand()");
+        NotificationManager mNotificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
         if(intent.getAction().equals("RFduinoService_StartForeground")) {
-            Intent notificationIntent = new Intent(RFduinoService.this, MainActivity.class);
-            notificationIntent.setAction("RFduinoTest_CallToMain");
-            notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            PendingIntent pendingIntent = PendingIntent.getActivity(RFduinoService.this, 0, notificationIntent, 0);
-
-            Intent discoIntent = new Intent(RFduinoService.this, RFduinoService.class);
-            discoIntent.setAction("ACTION_DISCONNECT");
-            PendingIntent pDiscoIntent = PendingIntent.getService(RFduinoService.this, 0, discoIntent, 0);
-
-            Intent connIntent = new Intent(RFduinoService.this, RFduinoService.class);
-            connIntent.setAction("ACTION_CONNECT");
-            PendingIntent pConnIntent = PendingIntent.getService(RFduinoService.this, 0, connIntent, 0);
-
-            Intent stopIntent = new Intent(RFduinoService.this, RFduinoService.class);
-            stopIntent.setAction("RFduinoService_Stop");
-            PendingIntent pStopIntent = PendingIntent.getService(RFduinoService.this, 0, stopIntent, 0);
-
-            Notification noti = new NotificationCompat.Builder(RFduinoService.this)
-                    .setContentTitle("Bluetooth Connection running")
-                    .setTicker("BTLE Ticker")
-                    .setContentText("BTLE Contenct Text")
-                    .setSmallIcon(R.drawable.ic_launcher)
-//                    .setLargeIcon(
-  //                          Bitmap.createScaledBitmap(icon, 128, 128, false))
-                    .setContentIntent(pendingIntent)
-                    .setOngoing(true) // maybe disable to allow closing with x-button?
-                    .addAction(android.R.drawable.ic_media_pause, "Disconnect", pDiscoIntent)
-                    .addAction(android.R.drawable.ic_media_play, "Connect", pConnIntent)
-                    .addAction(android.R.drawable.ic_delete, "Stop", pStopIntent).build();
-
-            startForeground(101, noti);
+            startForeground(101, buildNotification().build());
         }
         else if(intent.getAction().equals("ACTION_DISCONNECT")) {
             Log.i(TAG,"disconnect clicked");
@@ -414,6 +387,9 @@ public class RFduinoService extends Service {
                 close();
                 //TODO: States need to be handled generally
                 dataBundle.state_ = 2; // Disconnected state
+                NotificationCompat.Builder mBuilder = buildNotification();
+                mBuilder.setContentText("RFDuino disconnected");
+                mNotificationManager.notify(101, mBuilder.build());
             }
         }
         else if(intent.getAction().equals("ACTION_CONNECT")) {
@@ -421,6 +397,7 @@ public class RFduinoService extends Service {
             if(dataBundle.state_ == 2) {
                 connect(dataBundle.device.getAddress());
                 dataBundle.state_ = 4;
+                mNotificationManager.notify(101, buildNotification().build());
             }
         }
         else if(intent.getAction().equals("RFduinoService_Stop")) {
@@ -483,5 +460,38 @@ public class RFduinoService extends Service {
             unregisterReceiver(bluetoothStateReceiver);
         }
         super.onDestroy();
+    }
+
+    private NotificationCompat.Builder buildNotification() {
+        Intent notificationIntent = new Intent(RFduinoService.this, MainActivity.class);
+        notificationIntent.setAction("RFduinoTest_CallToMain");
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        PendingIntent pendingIntent = PendingIntent.getActivity(RFduinoService.this, 0, notificationIntent, 0);
+
+        Intent discoIntent = new Intent(RFduinoService.this, RFduinoService.class);
+        discoIntent.setAction("ACTION_DISCONNECT");
+        PendingIntent pDiscoIntent = PendingIntent.getService(RFduinoService.this, 0, discoIntent, 0);
+
+        Intent connIntent = new Intent(RFduinoService.this, RFduinoService.class);
+        connIntent.setAction("ACTION_CONNECT");
+        PendingIntent pConnIntent = PendingIntent.getService(RFduinoService.this, 0, connIntent, 0);
+
+        Intent stopIntent = new Intent(RFduinoService.this, RFduinoService.class);
+        stopIntent.setAction("RFduinoService_Stop");
+        PendingIntent pStopIntent = PendingIntent.getService(RFduinoService.this, 0, stopIntent, 0);
+
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(RFduinoService.this)
+                .setContentTitle("Bluetooth Connection running")
+                .setTicker("BTLE Ticker")
+                .setContentText("RFDuino connected")
+                .setSmallIcon(R.drawable.ic_launcher)
+//                    .setLargeIcon(
+                        //                          Bitmap.createScaledBitmap(icon, 128, 128, false))
+                .setContentIntent(pendingIntent)
+                .setOngoing(true) // maybe disable to allow closing with x-button?
+                .addAction(android.R.drawable.ic_media_pause, "Disconnect", pDiscoIntent)
+                .addAction(android.R.drawable.ic_media_play, "Connect", pConnIntent)
+                .addAction(android.R.drawable.ic_delete, "Stop", pStopIntent);
+        return mBuilder;
     }
 }
