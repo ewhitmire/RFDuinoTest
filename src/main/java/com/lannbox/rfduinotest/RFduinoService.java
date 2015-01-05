@@ -40,6 +40,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.os.Binder;
 import android.os.IBinder;
@@ -373,7 +374,7 @@ public class RFduinoService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId){
         Log.i(TAG, "onStartCommand()");
 
-        if(intent.getAction().equals("RFduinoService_Continue")) {
+        if(intent.getAction().equals("RFduinoService_StartForeground")) {
             Intent notificationIntent = new Intent(RFduinoService.this, MainActivity.class);
             notificationIntent.setAction("RFduinoTest_CallToMain");
             notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -387,6 +388,10 @@ public class RFduinoService extends Service {
             connIntent.setAction("ACTION_CONNECT");
             PendingIntent pConnIntent = PendingIntent.getService(RFduinoService.this, 0, connIntent, 0);
 
+            Intent stopIntent = new Intent(RFduinoService.this, RFduinoService.class);
+            stopIntent.setAction("RFduinoService_Stop");
+            PendingIntent pStopIntent = PendingIntent.getService(RFduinoService.this, 0, stopIntent, 0);
+
             Notification noti = new NotificationCompat.Builder(RFduinoService.this)
                     .setContentTitle("Bluetooth Connection running")
                     .setTicker("BTLE Ticker")
@@ -397,18 +402,46 @@ public class RFduinoService extends Service {
                     .setContentIntent(pendingIntent)
                     .setOngoing(true) // maybe disable to allow closing with x-button?
                     .addAction(android.R.drawable.ic_media_pause, "Disconnect", pDiscoIntent)
-                    .addAction(android.R.drawable.ic_media_play, "Connect", pConnIntent).build();
+                    .addAction(android.R.drawable.ic_media_play, "Connect", pConnIntent)
+                    .addAction(android.R.drawable.ic_delete, "Stop", pStopIntent).build();
 
             startForeground(101, noti);
         }
         else if(intent.getAction().equals("ACTION_DISCONNECT")) {
             Log.i(TAG,"disconnect clicked");
+            if(dataBundle.state_ == 4) {
+                disconnect();
+                close();
+                //TODO: States need to be handled generally
+                dataBundle.state_ = 2; // Disconnected state
+            }
         }
         else if(intent.getAction().equals("ACTION_CONNECT")) {
             Log.i(TAG,"connect clicked");
+            if(dataBundle.state_ == 2) {
+                connect(dataBundle.device.getAddress());
+                dataBundle.state_ = 4;
+            }
         }
         else if(intent.getAction().equals("RFduinoService_Stop")) {
-            Log.i(TAG,"Background service stop received");
+            Log.i(TAG, "Background service stop received");
+            if (dataBundle != null) {
+                if (dataBundle.state_ == 4) {
+                    disconnect();
+                }
+            }
+            // Saving to sharedPreferences that the service is not running in foreground anymore
+            SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(
+                    getString(R.string.preference_file_key), Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = sharedPref.edit();
+            editor.putBoolean("foregroundServiceRunning", false);
+            editor.commit();
+
+            stopForeground(true);
+            stopSelf();
+        }
+        else if(intent.getAction().equals("RFduinoService_StopForeground")) {
+            Log.i(TAG, "service stop foreground received");
             stopForeground(true);
         }
 
