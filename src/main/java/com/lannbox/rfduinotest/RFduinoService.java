@@ -24,7 +24,6 @@
 package com.lannbox.rfduinotest;
 
 import android.Manifest;
-import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -42,7 +41,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
@@ -90,6 +88,8 @@ public class RFduinoService extends Service {
     private int state;
 
     private BluetoothDevice bluetoothDevice;
+
+    private NotificationManager mNotificationManager;
 
     boolean receiverRegistered = false;
 
@@ -182,6 +182,22 @@ public class RFduinoService extends Service {
             intent.putExtra(EXTRA_DATA, characteristic.getValue());
             sendBroadcast(intent, Manifest.permission.BLUETOOTH);
             Log.w(TAG,"BTLE Data received and broadcasted");
+
+            // Create notification
+            Intent notificationIntent = new Intent(RFduinoService.this, MainActivity.class);
+            notificationIntent.setAction("RFduinoTest_CallToMain");
+            notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            PendingIntent pendingIntent = PendingIntent.getActivity(RFduinoService.this, 0, notificationIntent, 0);
+            NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(RFduinoService.this)
+                    .setContentTitle("Bluetooth Data")
+                    .setTicker("New Bluetooth Data Received")
+                    .setContentText("Data:" + HexAsciiHelper.bytesToAsciiMaybe(characteristic.getValue()) + "\nOr: " + HexAsciiHelper.bytesToHex(characteristic.getValue()))
+                    .setSmallIcon(R.drawable.ic_launcher)
+//                    .setLargeIcon(
+                            //                          Bitmap.createScaledBitmap(icon, 128, 128, false))
+                    .setAutoCancel(true)
+                    .setContentIntent(pendingIntent);
+            mNotificationManager.notify(110, mBuilder.build());
         }
     }
 
@@ -369,16 +385,16 @@ public class RFduinoService extends Service {
     public void onCreate() {
         Log.i(TAG, "onCreate()");
         super.onCreate();
+        mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
     }
 
     // preparing for stand alone action without activity
     public int onStartCommand(Intent intent, int flags, int startId){
         Log.i(TAG, "onStartCommand()");
-        NotificationManager mNotificationManager =
-                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
         if(intent.getAction().equals("RFduinoService_StartForeground")) {
-            startForeground(101, buildNotification().build());
+            //TODO: use proper notification ID here!
+            startForeground(101, buildServiceNotification().build());
         }
         else if(intent.getAction().equals("ACTION_DISCONNECT")) {
             Log.i(TAG,"disconnect clicked");
@@ -387,8 +403,9 @@ public class RFduinoService extends Service {
                 close();
                 //TODO: States need to be handled generally
                 dataBundle.state_ = 2; // Disconnected state
-                NotificationCompat.Builder mBuilder = buildNotification();
+                NotificationCompat.Builder mBuilder = buildServiceNotification();
                 mBuilder.setContentText("RFDuino disconnected");
+                //TODO: use proper notification ID here!
                 mNotificationManager.notify(101, mBuilder.build());
             }
         }
@@ -397,7 +414,8 @@ public class RFduinoService extends Service {
             if(dataBundle.state_ == 2) {
                 connect(dataBundle.device.getAddress());
                 dataBundle.state_ = 4;
-                mNotificationManager.notify(101, buildNotification().build());
+                //TODO: use proper notification ID here!
+                mNotificationManager.notify(101, buildServiceNotification().build());
             }
         }
         else if(intent.getAction().equals("RFduinoService_Stop")) {
@@ -462,7 +480,7 @@ public class RFduinoService extends Service {
         super.onDestroy();
     }
 
-    private NotificationCompat.Builder buildNotification() {
+    private NotificationCompat.Builder buildServiceNotification() {
         Intent notificationIntent = new Intent(RFduinoService.this, MainActivity.class);
         notificationIntent.setAction("RFduinoTest_CallToMain");
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
