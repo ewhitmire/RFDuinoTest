@@ -316,7 +316,7 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         registerReceiver(bluetoothStateReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
         registerReceiver(rfduinoReceiver, RFduinoService.getIntentFilter());
 
-        if(state < STATE_DISCONNECTED) {
+        if(state <= STATE_DISCONNECTED) {
             updateState(bluetoothAdapter.isEnabled() ? STATE_DISCONNECTED : STATE_BLUETOOTH_OFF);
         }
 
