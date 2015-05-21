@@ -30,7 +30,7 @@ public class HexAsciiHelper {
 
         StringBuilder hex = new StringBuilder();
         for (int i = offset; i < offset + length; i++) {
-            hex.append(String.format(" %02X", data[i] % 0xFF));
+            hex.append(String.format(" %d", (int)(data[i] & 0xff)));
         }
         hex.deleteCharAt(0);
         return hex.toString();

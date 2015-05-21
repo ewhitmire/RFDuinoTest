@@ -468,21 +468,19 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
 
         Log.w("Main","Updated UI to state " + state);
     }
-
+    private StringBuilder sb;
     private void addData(byte[] data) {
         View view = getLayoutInflater().inflate(android.R.layout.simple_list_item_2, dataLayout, false);
 
-        TextView text1 = (TextView) view.findViewById(android.R.id.text1);
-        text1.setText(HexAsciiHelper.bytesToHex(data));
-
-        String ascii = HexAsciiHelper.bytesToAsciiMaybe(data);
-        if (ascii != null) {
-            TextView text2 = (TextView) view.findViewById(android.R.id.text2);
-            text2.setText(ascii);
+        if (sb == null){
+            sb = new StringBuilder();
+        }
+        sb.append(HexAsciiHelper.bytesToHex(data)+",");
+        if (sb.length() > 1000){
+            Log.v("data", sb.toString());
+            sb = new StringBuilder();
         }
 
-        dataLayout.addView(
-                view, LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
     }
 
     @Override
